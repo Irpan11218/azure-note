@@ -7,11 +7,28 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const sql = getSql();
-    const { username, password } = req.body;
+    // Parse body manually as fallback
+    let body = req.body;
+    if (!body || typeof body === 'string') {
+      try {
+        body = typeof body === 'string' ? JSON.parse(body) : {};
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid request body' });
+      }
+    }
+
+    const { username, password } = body;
     if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
     if (username.length < 3) return res.status(400).json({ error: 'Username minimal 3 karakter' });
     if (password.length < 6) return res.status(400).json({ error: 'Password minimal 6 karakter' });
+
+    let sql;
+    try {
+      sql = getSql();
+    } catch (dbErr) {
+      console.error('DB connection error:', dbErr.message);
+      return res.status(500).json({ error: 'Database connection failed: ' + dbErr.message });
+    }
 
     const existing = await sql`SELECT id FROM users WHERE username = ${username}`;
     if (existing.length > 0) return res.status(409).json({ error: 'Username sudah digunakan' });
@@ -35,6 +52,6 @@ module.exports = async function handler(req, res) {
     return res.status(201).json({ user });
   } catch (err) {
     console.error('Register error:', err);
-    return res.status(500).json({ error: 'Terjadi kesalahan server: ' + err.message });
+    return res.status(500).json({ error: 'Terjadi kesalahan server: ' + (err.message || 'Unknown error') });
   }
 };
