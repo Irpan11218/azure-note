@@ -1,4 +1,4 @@
-const { sql } = require('../../../lib/db');
+const { getSql } = require('../../../lib/db');
 const { setSessionCookie } = require('../../../lib/auth');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
@@ -6,12 +6,13 @@ const crypto = require('crypto');
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
-  if (username.length < 3) return res.status(400).json({ error: 'Username minimal 3 karakter' });
-  if (password.length < 6) return res.status(400).json({ error: 'Password minimal 6 karakter' });
-
   try {
+    const sql = getSql();
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
+    if (username.length < 3) return res.status(400).json({ error: 'Username minimal 3 karakter' });
+    if (password.length < 6) return res.status(400).json({ error: 'Password minimal 6 karakter' });
+
     const existing = await sql`SELECT id FROM users WHERE username = ${username}`;
     if (existing.length > 0) return res.status(409).json({ error: 'Username sudah digunakan' });
 
@@ -33,7 +34,7 @@ module.exports = async function handler(req, res) {
     setSessionCookie(res, sessionId);
     return res.status(201).json({ user });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Terjadi kesalahan server' });
+    console.error('Register error:', err);
+    return res.status(500).json({ error: 'Terjadi kesalahan server: ' + err.message });
   }
 };

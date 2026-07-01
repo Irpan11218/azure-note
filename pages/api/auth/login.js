@@ -1,4 +1,4 @@
-const { sql } = require('../../../lib/db');
+const { getSql } = require('../../../lib/db');
 const { getUserFromSession, setSessionCookie } = require('../../../lib/auth');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
@@ -6,10 +6,11 @@ const crypto = require('crypto');
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
-
   try {
+    const sql = getSql();
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
+
     const users = await sql`SELECT * FROM users WHERE username = ${username}`;
     if (users.length === 0) return res.status(401).json({ error: 'Username atau password salah' });
 
@@ -24,7 +25,7 @@ module.exports = async function handler(req, res) {
     setSessionCookie(res, sessionId);
     return res.status(200).json({ user: { id: user.id, username: user.username, profile_pic: user.profile_pic } });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Terjadi kesalahan server' });
+    console.error('Login error:', err);
+    return res.status(500).json({ error: 'Terjadi kesalahan server: ' + err.message });
   }
 };
